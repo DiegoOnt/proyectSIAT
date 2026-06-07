@@ -11,6 +11,8 @@ import javax.swing.*;
 import javax.swing.border.TitledBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableRowSorter;
+import javax.swing.RowFilter;
 import java.io.File;
 import javax.swing.JFileChooser;
 import com.siat.ExportUtil;
@@ -26,6 +28,12 @@ public class DashboardFrame extends JFrame implements AssetUpdateListener {
     private final JTable assetTable = new JTable();
     private final JTable auditTable = new JTable();
     private final JLabel metricsLabel = new JLabel();
+
+    // Componentes de filtro
+    private final JTextField searchField = new RoundTextField(20);
+    private final JComboBox<String> statusFilterBox = new JComboBox<>();
+    private final JComboBox<String> categoryFilterBox = new JComboBox<>();
+    private TableRowSorter<DefaultTableModel> tableSorter;
 
     // Referencias a las gráficas para permitir su actualización
     private ChartPanel categoryChart;
@@ -126,7 +134,11 @@ public class DashboardFrame extends JFrame implements AssetUpdateListener {
         JPanel panel = new JPanel(new BorderLayout(8, 8));
         panel.setOpaque(false);
 
-        // Panel de gráficas
+        // Panel superior: gráficas + filtros
+        JPanel topSection = new JPanel();
+        topSection.setLayout(new BoxLayout(topSection, BoxLayout.Y_AXIS));
+        topSection.setOpaque(false);
+
         JPanel chartsPanel = new JPanel(new GridLayout(1, 3, 8, 8));
         chartsPanel.setOpaque(false);
         chartsPanel.setBorder(BorderFactory.createTitledBorder(
@@ -134,7 +146,8 @@ public class DashboardFrame extends JFrame implements AssetUpdateListener {
             "Análisis", TitledBorder.LEFT, TitledBorder.TOP,
             new Font("Segoe UI", Font.BOLD, 12), Color.WHITE
         ));
-        chartsPanel.setPreferredSize(new Dimension(0, 280));
+        chartsPanel.setPreferredSize(new Dimension(0, 230));
+        chartsPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 230));
         
         categoryChart = new ChartPanel("Cantidades por Categoría", getAssetsByCategory());
         costChart = new PieChartPanel("Costos por Categoría", getCostsByCategory());
@@ -143,7 +156,14 @@ public class DashboardFrame extends JFrame implements AssetUpdateListener {
         chartsPanel.add(categoryChart);
         chartsPanel.add(costChart);
         chartsPanel.add(locationChart);
-        panel.add(chartsPanel, BorderLayout.NORTH);
+        topSection.add(chartsPanel);
+
+        loadCategoryFilter();
+        JPanel filterPanel = buildFilterPanel();
+        filterPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 36));
+        topSection.add(filterPanel);
+
+        panel.add(topSection, BorderLayout.NORTH);
 
         // Panel de tabla
         assetTable.setFillsViewportHeight(true);
@@ -314,6 +334,9 @@ public class DashboardFrame extends JFrame implements AssetUpdateListener {
         }
 
         assetTable.setModel(model);
+        tableSorter = new TableRowSorter<>((DefaultTableModel) assetTable.getModel());
+        assetTable.setRowSorter(tableSorter);
+        applyFilter();
         if (currentUser.canEdit()) {
             assetTable.getColumnModel().getColumn(assetTable.getColumnCount() - 1).setMaxWidth(100);
         }
@@ -376,6 +399,121 @@ public class DashboardFrame extends JFrame implements AssetUpdateListener {
         ));
         panel.add(scrollPane, BorderLayout.CENTER);
         return panel;
+    }
+
+    private void loadCategoryFilter() {
+        categoryFilterBox.removeAllItems();
+        categoryFilterBox.addItem("Todas");
+        List<String[]> cats = com.siat.dao.CategoriaDAO.list();
+        for (String[] pair : cats) {
+            categoryFilterBox.addItem(pair[1]);
+        }
+    }
+
+    private JPanel buildFilterPanel() {
+        JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
+        filterPanel.setOpaque(false);
+
+        Font labelFont = new Font("Segoe UI", Font.BOLD, 11);
+        Color labelColor = new Color(165, 180, 252);
+
+        JLabel searchLabel = new JLabel("Buscar:");
+        searchLabel.setFont(labelFont);
+        searchLabel.setForeground(labelColor);
+        filterPanel.add(searchLabel);
+        searchField.setPreferredSize(new Dimension(180, 28));
+        searchField.putClientProperty("placeholder", "SKU, nombre, categoría...");
+        searchField.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyReleased(java.awt.event.KeyEvent e) {
+                applyFilter();
+            }
+        });
+        filterPanel.add(searchField);
+
+        JLabel statusLabel = new JLabel("Estado:");
+        statusLabel.setFont(labelFont);
+        statusLabel.setForeground(labelColor);
+        filterPanel.add(statusLabel);
+        statusFilterBox.addItem("Todos");
+        statusFilterBox.addItem("IN_SERVICE");
+        statusFilterBox.addItem("UNDER_MAINTENANCE");
+        statusFilterBox.addItem("RETIRED");
+        statusFilterBox.addItem("LOST");
+        statusFilterBox.setPreferredSize(new Dimension(160, 26));
+        statusFilterBox.setBackground(new Color(20, 20, 32));
+        statusFilterBox.setForeground(Color.WHITE);
+        statusFilterBox.addActionListener(e -> applyFilter());
+        filterPanel.add(statusFilterBox);
+
+        JLabel catLabel = new JLabel("Categoría:");
+        catLabel.setFont(labelFont);
+        catLabel.setForeground(labelColor);
+        filterPanel.add(catLabel);
+        categoryFilterBox.setPreferredSize(new Dimension(160, 26));
+        categoryFilterBox.setBackground(new Color(20, 20, 32));
+        categoryFilterBox.setForeground(Color.WHITE);
+        categoryFilterBox.addActionListener(e -> applyFilter());
+        filterPanel.add(categoryFilterBox);
+
+        ModernButton clearBtn = new ModernButton("Limpiar");
+        clearBtn.setPreferredSize(new Dimension(90, 28));
+        clearBtn.addActionListener(e -> {
+            searchField.setText("");
+            statusFilterBox.setSelectedIndex(0);
+            categoryFilterBox.setSelectedIndex(0);
+        });
+        filterPanel.add(clearBtn);
+
+        return filterPanel;
+    }
+
+    private void applyFilter() {
+        if (tableSorter == null) return;
+        String searchText = searchField.getText().trim().toLowerCase();
+        String statusFilter = (String) statusFilterBox.getSelectedItem();
+        String categoryFilter = (String) categoryFilterBox.getSelectedItem();
+
+        tableSorter.setRowFilter(new RowFilter<DefaultTableModel, Integer>() {
+            @Override
+            public boolean include(Entry<? extends DefaultTableModel, ? extends Integer> entry) {
+                DefaultTableModel model = entry.getModel();
+                int row = entry.getIdentifier();
+
+                if (statusFilter != null && !"Todos".equals(statusFilter)) {
+                    int statusCol = 4;
+                    if (statusCol < model.getColumnCount()) {
+                        String val = model.getValueAt(row, statusCol).toString();
+                        if (!statusFilter.equals(val)) return false;
+                    }
+                }
+
+                if (categoryFilter != null && !"Todas".equals(categoryFilter)) {
+                    int catCol = 2;
+                    if (catCol < model.getColumnCount()) {
+                        String val = model.getValueAt(row, catCol).toString();
+                        if (!categoryFilter.equals(val)) return false;
+                    }
+                }
+
+                if (!searchText.isEmpty()) {
+                    boolean found = false;
+                    int[] searchCols = {0, 1, 2, 3};
+                    for (int col : searchCols) {
+                        if (col < model.getColumnCount()) {
+                            Object val = model.getValueAt(row, col);
+                            if (val != null && val.toString().toLowerCase().contains(searchText)) {
+                                found = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!found) return false;
+                }
+
+                return true;
+            }
+        });
     }
 
     private void loadAudits() {
