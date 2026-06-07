@@ -110,16 +110,149 @@ public class LoginFrame extends JFrame {
 
         com.siat.dao.AuditDAO.log(user.getUserId(), "LOGIN", "users", String.valueOf(user.getUserId()), true, "Inicio de sesión exitoso");
 
-        JOptionPane.showMessageDialog(this,
-            "¡Bienvenido al Sistema SIAT, " + user.getUsername() + "!\n\n" +
-            "⚠️ IMPORTANTE: Este sistema auditará y registrará toda la actividad realizada.\n" +
-            "Todas las acciones serán monitoreadas para garantizar la seguridad y trazabilidad.",
-            "Bienvenida",
-            JOptionPane.INFORMATION_MESSAGE);
+        showWelcomeDialog(user);
 
         DashboardFrame dashboard = new DashboardFrame(user);
         dashboard.setVisible(true);
         dispose();
+    }
+
+    private void showWelcomeDialog(Usuario user) {
+        // --- Diálogo personalizado con el diseño del sistema ---
+        JDialog dialog = new JDialog(this, "Bienvenida", true);
+        dialog.setUndecorated(true);
+        dialog.setSize(420, 310);
+        dialog.setLocationRelativeTo(this);
+
+        // Panel principal con fondo oscuro y bordes redondeados
+        JPanel mainPanel = new JPanel(new GridBagLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                // Fondo oscuro del sistema
+                g2.setColor(new Color(30, 30, 46));
+                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 20, 20);
+                // Borde sutil
+                g2.setColor(new Color(55, 55, 80));
+                g2.setStroke(new BasicStroke(1.5f));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 20, 20);
+                g2.dispose();
+            }
+        };
+        mainPanel.setOpaque(false);
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(28, 32, 24, 32));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+
+        // --- Icono de check con degradado índigo ---
+        JComponent checkIcon = new JComponent() {
+            { setPreferredSize(new Dimension(56, 56)); }
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                int size = 50;
+                int x = (getWidth() - size) / 2;
+                int y = (getHeight() - size) / 2;
+                // Círculo con degradado índigo
+                GradientPaint gp = new GradientPaint(x, y, new Color(99, 102, 241), x + size, y + size, new Color(79, 70, 229));
+                g2.setPaint(gp);
+                g2.fillOval(x, y, size, size);
+                // Brillo exterior
+                g2.setColor(new Color(255, 255, 255, 25));
+                g2.setStroke(new BasicStroke(2f));
+                g2.drawOval(x, y, size, size);
+                // Check blanco
+                g2.setColor(Color.WHITE);
+                g2.setStroke(new BasicStroke(3.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                int cx = x + size / 2;
+                int cy = y + size / 2;
+                g2.drawLine(cx - 10, cy, cx - 3, cy + 8);
+                g2.drawLine(cx - 3, cy + 8, cx + 12, cy - 8);
+                g2.dispose();
+            }
+        };
+        gbc.gridy = 0;
+        gbc.insets = new Insets(0, 0, 12, 0);
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.anchor = GridBagConstraints.CENTER;
+        mainPanel.add(checkIcon, gbc);
+
+        // --- Título de bienvenida ---
+        JLabel titleLabel = new JLabel("¡Bienvenido, " + user.getUsername() + "!", SwingConstants.CENTER);
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        titleLabel.setForeground(Color.WHITE);
+        gbc.gridy = 1;
+        gbc.insets = new Insets(0, 0, 6, 0);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        mainPanel.add(titleLabel, gbc);
+
+        // --- Subtítulo ---
+        JLabel subtitleLabel = new JLabel("Sistema SIAT", SwingConstants.CENTER);
+        subtitleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        subtitleLabel.setForeground(new Color(165, 180, 252));
+        gbc.gridy = 2;
+        gbc.insets = new Insets(0, 0, 16, 0);
+        mainPanel.add(subtitleLabel, gbc);
+
+        // --- Mensaje de auditoría con estilo ---
+        JPanel warningPanel = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(20, 20, 32));
+                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
+                g2.setColor(new Color(99, 102, 241, 80));
+                g2.setStroke(new BasicStroke(1f));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
+                g2.dispose();
+            }
+        };
+        warningPanel.setOpaque(false);
+        warningPanel.setBorder(BorderFactory.createEmptyBorder(12, 14, 12, 14));
+
+        JLabel warningIcon = new JLabel("⚠️ ");
+        warningIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 14));
+        warningPanel.add(warningIcon, BorderLayout.WEST);
+
+        JLabel warningText = new JLabel("<html><body style='width:260px; color:#a5b4fc; font-family:Segoe UI; font-size:10px;'>"
+                + "Este sistema auditará y registrará toda la actividad realizada. "
+                + "Todas las acciones serán monitoreadas para garantizar la seguridad y trazabilidad."
+                + "</body></html>");
+        warningPanel.add(warningText, BorderLayout.CENTER);
+
+        gbc.gridy = 3;
+        gbc.insets = new Insets(0, 0, 20, 0);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        mainPanel.add(warningPanel, gbc);
+
+        // --- Botón "Continuar" con degradado índigo ---
+        ModernButton continueBtn = new ModernButton("Continuar");
+        continueBtn.setPreferredSize(new Dimension(0, 36));
+        continueBtn.addActionListener(e -> dialog.dispose());
+        gbc.gridy = 4;
+        gbc.insets = new Insets(0, 60, 0, 60);
+        mainPanel.add(continueBtn, gbc);
+
+        // Fondo del diálogo transparente para ver los bordes redondeados
+        dialog.setBackground(new Color(0, 0, 0, 0));
+        dialog.getContentPane().setBackground(new Color(0, 0, 0, 0));
+        if (dialog.getRootPane() != null) {
+            dialog.getRootPane().setOpaque(false);
+            dialog.getRootPane().putClientProperty("apple.awt.draggable", true);
+        }
+        dialog.getContentPane().setLayout(new BorderLayout());
+        dialog.getContentPane().add(mainPanel, BorderLayout.CENTER);
+
+        dialog.setVisible(true);
     }
 }
 

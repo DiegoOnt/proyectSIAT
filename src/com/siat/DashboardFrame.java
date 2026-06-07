@@ -11,6 +11,9 @@ import javax.swing.*;
 import javax.swing.border.TitledBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import java.io.File;
+import javax.swing.JFileChooser;
+import com.siat.ExportUtil;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -75,6 +78,47 @@ public class DashboardFrame extends JFrame implements AssetUpdateListener {
         userLabel.setForeground(new Color(165, 180, 252)); // Índigo suave
         userLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
         header.add(userLabel, BorderLayout.EAST);
+
+        // Export buttons panel
+        JPanel exportPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        exportPanel.setOpaque(false);
+        ModernButton exportPdfBtn = new ModernButton("Exportar PDF");
+        exportPdfBtn.setPreferredSize(new Dimension(120, 32));
+        exportPdfBtn.addActionListener(e -> {
+            JFileChooser chooser = new JFileChooser();
+            chooser.setDialogTitle("Guardar PDF");
+            chooser.setSelectedFile(new File("assets_" + System.currentTimeMillis() + ".pdf"));
+            int result = chooser.showSaveDialog(this);
+            if (result == JFileChooser.APPROVE_OPTION) {
+                File file = chooser.getSelectedFile();
+                try {
+                    ExportUtil.exportTableToPdf(assetTable, file);
+                    JOptionPane.showMessageDialog(this, "PDF exportado exitosamente.");
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(this, "Error al exportar PDF: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
+        exportPanel.add(exportPdfBtn);
+        ModernButton exportExcelBtn = new ModernButton("Exportar Excel");
+        exportExcelBtn.setPreferredSize(new Dimension(120, 32));
+        exportExcelBtn.addActionListener(e -> {
+            JFileChooser chooser = new JFileChooser();
+            chooser.setDialogTitle("Guardar Excel");
+            chooser.setSelectedFile(new File("assets_" + System.currentTimeMillis() + ".xlsx"));
+            int result = chooser.showSaveDialog(this);
+            if (result == JFileChooser.APPROVE_OPTION) {
+                File file = chooser.getSelectedFile();
+                try {
+                    ExportUtil.exportTableToExcel(assetTable, file);
+                    JOptionPane.showMessageDialog(this, "Excel exportado exitosamente.");
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(this, "Error al exportar Excel: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
+        exportPanel.add(exportExcelBtn);
+        header.add(exportPanel, BorderLayout.CENTER);
         return header;
     }
 
